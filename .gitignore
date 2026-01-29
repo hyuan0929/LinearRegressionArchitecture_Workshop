@@ -1,0 +1,21 @@
+# Python virtual environment
+venv/
+.env/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Database / temp files
+*.db
+
+# OS / editor
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Other projects accidentally placed
+CSCN8010_course_repo/
+Teacher_LinearRegressionArchitecture_Workshop/
+DataStreamVisualization_Workshop/

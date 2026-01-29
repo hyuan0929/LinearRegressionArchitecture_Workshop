@@ -1,0 +1,15 @@
+# Core scientific stack
+numpy
+pandas
+scikit-learn
+requests
+
+# Visualization
+matplotlib
+
+# Configuration
+pyyaml
+
+# Notebooks
+jupyter
+ipykernel

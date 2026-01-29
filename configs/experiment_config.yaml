@@ -1,0 +1,50 @@
+# Linear Regression Experiment Config
+
+project:
+  name: LinearRegressionArchitecture_Workshop
+  author: Haibo Yuan
+  description: >
+    Univariate linear regression experiment using housing price data
+    for architecture and reproducibility demonstration.
+
+data:
+  raw_data_dir: data/raw
+  processed_data_dir: data/processed
+
+  datasets:
+    california:
+      source_type: csv
+      path: data/raw/california_housing.csv
+      target: median_house_value
+      feature: median_income
+
+    ontario:
+      source_type: placeholder
+      note: >
+        Ontario housing data will be added later
+        (API or database source).
+
+preprocessing:
+  test_size: 0.2
+  random_state: 42
+  scaling: standard
+
+model:
+  type: linear_regression
+  implementation:
+    from_scratch: true
+    sklearn: true
+
+training:
+  learning_rate: 0.01
+  max_iterations: 1000
+
+evaluation:
+  metrics:
+    - rmse
+    - mae
+    - r2
+
+experiment_tracking:
+  results_file: experiments/results.csv
+  save_predictions: false
