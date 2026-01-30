@@ -45,6 +45,13 @@ evaluation:
     - mae
     - r2
 
+database:
+  type: postgresql
+  provider: neon
+  connection_string: ${NEON_DATABASE_URL}
+  table: robot_telemetry
+
+
 experiment_tracking:
   results_file: experiments/results.csv
   save_predictions: false
