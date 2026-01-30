@@ -13,3 +13,15 @@ pyyaml
 # Notebooks
 jupyter
 ipykernel
+
+# Kaggle datasets
+kagglehub[pandas-datasets]
+
+# Database interaction
+sqlalchemy
+
+# GUI
+PyQt5
+
+# PostgreSQL adapter
+psycopg2
