@@ -1,15 +1,28 @@
-# Import data 
-# Data imports from kaggle (https://www.kaggle.com/datasets/lameesmohammad/home-prices-in-canada)
+import os
 import pandas as pd
 
-file_path = "data/raw/HouseListings-Top45Cities-10292023-kaggle.csv"
+def load_yaml_config(config_path: str) -> dict:
+    try:
+        import yaml
+    except ImportError as e:
+        raise ImportError("PyYAML is required. Install with: pip install pyyaml") from e
 
-df = pd.read_csv(
-    file_path,
-    encoding="latin1",      
-    engine="python",        
-    on_bad_lines="warn"     
-)
+    if not os.path.exists(config_path):
+        raise FileNotFoundError(f"Config not found: {config_path}")
 
-print("Dataset shape:", df.shape)
-display(df.head())
+    with open(config_path, "r", encoding="utf-8") as f:
+        cfg = yaml.safe_load(f)
+
+    if not isinstance(cfg, dict):
+        raise ValueError("YAML config must be a dictionary at the top level.")
+    return cfg
+
+def require_columns(df: pd.DataFrame, cols: list[str], name: str = "dataframe") -> None:
+    missing = [c for c in cols if c not in df.columns]
+    if missing:
+        raise ValueError(f"Missing columns in {name}: {missing}. Available: {df.columns.tolist()}")
+
+def load_csv(path: str) -> pd.DataFrame:
+    if not os.path.exists(path):
+        raise FileNotFoundError(f"CSV not found: {path}")
+    return pd.read_csv(path)
