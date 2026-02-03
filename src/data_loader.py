@@ -1,28 +1,45 @@
+# src/data_loader.py
 import os
 import pandas as pd
+from typing import Tuple, List
 
-def load_yaml_config(config_path: str) -> dict:
-    try:
-        import yaml
-    except ImportError as e:
-        raise ImportError("PyYAML is required. Install with: pip install pyyaml") from e
+from .utils import standardize_columns, pick_time_column, safe_to_datetime
 
-    if not os.path.exists(config_path):
-        raise FileNotFoundError(f"Config not found: {config_path}")
 
-    with open(config_path, "r", encoding="utf-8") as f:
-        cfg = yaml.safe_load(f)
-
-    if not isinstance(cfg, dict):
-        raise ValueError("YAML config must be a dictionary at the top level.")
-    return cfg
-
-def require_columns(df: pd.DataFrame, cols: list[str], name: str = "dataframe") -> None:
-    missing = [c for c in cols if c not in df.columns]
-    if missing:
-        raise ValueError(f"Missing columns in {name}: {missing}. Available: {df.columns.tolist()}")
-
-def load_csv(path: str) -> pd.DataFrame:
+def load_raw_csv(path: str) -> pd.DataFrame:
     if not os.path.exists(path):
-        raise FileNotFoundError(f"CSV not found: {path}")
-    return pd.read_csv(path)
+        raise FileNotFoundError(f"Raw CSV not found: {path}")
+    df = pd.read_csv(path)
+    df = standardize_columns(df)
+    return df
+
+
+def prepare_time_sorted(df: pd.DataFrame) -> Tuple[pd.DataFrame, str]:
+    """
+    Identify time column, parse it, sort by time, and drop invalid timestamps.
+    Returns (sorted_df, time_col).
+    """
+    time_col = pick_time_column(df.columns)
+    df = df.copy()
+    df[time_col] = safe_to_datetime(df[time_col])
+    df = df.dropna(subset=[time_col]).sort_values(time_col).reset_index(drop=True)
+    return df, time_col
+
+
+def get_axis_columns(df: pd.DataFrame) -> List[str]:
+    axis_cols = [c for c in df.columns if c.startswith("axis_")]
+    if not axis_cols:
+        raise ValueError(f"Cannot find axis columns. Columns: {df.columns.tolist()}")
+
+    # Drop axes entirely NaN
+    axis_cols = [c for c in axis_cols if df[c].notna().any()]
+
+    # Sort by axis number if possible
+    def axis_key(name: str) -> int:
+        try:
+            return int(name.split("_")[1])
+        except Exception:
+            return 10**9
+
+    axis_cols = sorted(axis_cols, key=axis_key)
+    return axis_cols

@@ -1,24 +1,29 @@
-import os
-import argparse
+# src/model.py
 import numpy as np
 import pandas as pd
-from sklearn.linear_model import LinearRegression
+from typing import Dict, Any, List
 
-from src.data_loader import load_yaml_config, load_csv, require_columns
+from sklearn.linear_model import LinearRegression
+from .utils import save_csv
+
 
 def hypothesis(theta0: float, theta1: float, x: np.ndarray) -> np.ndarray:
     return theta0 + theta1 * x
 
+
+def mse_cost(y_true: np.ndarray, y_pred: np.ndarray) -> float:
+    return float(np.mean((y_true - y_pred) ** 2))
+
+
 def gradient_descent_1d(x: np.ndarray, y: np.ndarray, lr: float, iters: int):
     x = x.astype(float)
     y = y.astype(float)
-
     m = len(x)
     if m == 0:
         raise ValueError("Empty training set.")
 
-    theta0 = 0.0
-    theta1 = 0.0
+    theta0, theta1 = 0.0, 0.0
+    history = []
 
     for _ in range(iters):
         y_pred = hypothesis(theta0, theta1, x)
@@ -30,85 +35,97 @@ def gradient_descent_1d(x: np.ndarray, y: np.ndarray, lr: float, iters: int):
         theta0 -= lr * grad_theta0
         theta1 -= lr * grad_theta1
 
-    return float(theta0), float(theta1)
+        history.append(mse_cost(y, y_pred))
 
-def fit_scratch_with_centering(x: np.ndarray, y: np.ndarray, lr: float, iters: int):
-    mean_x = float(np.mean(x))
-    x_center = x - mean_x
-    theta0_c, theta1_c = gradient_descent_1d(x_center, y, lr, iters)
-    theta0 = theta0_c - theta1_c * mean_x
-    theta1 = theta1_c
-    return float(theta0), float(theta1)
+    return float(theta0), float(theta1), history
 
-def fit_sklearn(x: np.ndarray, y: np.ndarray):
+
+def sklearn_fit_1d(x: np.ndarray, y: np.ndarray):
     model = LinearRegression()
     model.fit(x.reshape(-1, 1), y)
-    return float(model.intercept_), float(model.coef_[0])
+    theta0 = float(model.intercept_)
+    theta1 = float(model.coef_[0])
+    return theta0, theta1
 
-def train_per_interval(cfg: dict) -> pd.DataFrame:
-    data_path = cfg["data"]["preprocessed_path"]
-    out_path = cfg["outputs"]["theta_table_path"]
 
-    lr = float(cfg["model"]["learning_rate"])
-    iters = int(cfg["model"]["iterations"])
-    predictor = cfg["model"]["predictor_feature"]
+def build_interval_theta_table(config: Dict[str, Any]) -> pd.DataFrame:
+    """
+    Read preprocessed period-level data and compute:
+    - scratch mean/peak theta0/theta1
+    - sklearn mean/peak theta0/theta1
+    Output: one row per interval_id
+    """
+    preprocessed_csv = config["paths"]["preprocessed_csv"]
+    theta_out_csv = config["paths"]["theta_table_csv"]
 
-    mean_target = cfg["model"]["targets"]["mean"]
-    peak_target = cfg["model"]["targets"]["peak"]
+    lr = float(config["training"]["learning_rate"])
+    iters = int(config["training"]["iterations"])
+    use_z = bool(config["training"]["use_standardized"])
 
-    df = load_csv(data_path)
+    x_col = "work_period"
+    group_col = "interval_id"
 
-    require_columns(df, ["interval_id", predictor, mean_target, peak_target], name="preprocessed")
+    y_mean = "mean_value_z" if use_z else "mean_value"
+    y_peak = "peak_value_z" if use_z else "peak_value"
 
-    df[predictor] = pd.to_numeric(df[predictor], errors="coerce")
-    df[mean_target] = pd.to_numeric(df[mean_target], errors="coerce")
-    df[peak_target] = pd.to_numeric(df[peak_target], errors="coerce")
-    df = df.dropna(subset=["interval_id", predictor, mean_target, peak_target]).copy()
+    df = pd.read_csv(preprocessed_csv)
+    need = [group_col, x_col, y_mean, y_peak]
+    missing = [c for c in need if c not in df.columns]
+    if missing:
+        raise ValueError(f"Missing columns in preprocessed data: {missing}")
 
-    rows = []
-    for interval_id, g in df.groupby("interval_id"):
-        g = g.sort_values(predictor)
-        x = g[predictor].to_numpy(dtype=float)
+    # numeric
+    df[x_col] = pd.to_numeric(df[x_col], errors="coerce")
+    df[y_mean] = pd.to_numeric(df[y_mean], errors="coerce")
+    df[y_peak] = pd.to_numeric(df[y_peak], errors="coerce")
+    df = df.dropna(subset=[group_col, x_col, y_mean, y_peak]).copy()
 
-        y_mean = g[mean_target].to_numpy(dtype=float)
-        y_peak = g[peak_target].to_numpy(dtype=float)
+    rows: List[dict] = []
 
-        s_mean_t0, s_mean_t1 = fit_scratch_with_centering(x, y_mean, lr, iters)
-        s_peak_t0, s_peak_t1 = fit_scratch_with_centering(x, y_peak, lr, iters)
+    for interval_id, g in df.groupby(group_col):
+        g = g.sort_values(x_col).copy()
+        x = g[x_col].to_numpy(dtype=float)
 
-        k_mean_t0, k_mean_t1 = fit_sklearn(x, y_mean)
-        k_peak_t0, k_peak_t1 = fit_sklearn(x, y_peak)
+        # center x for scratch stability
+        x_center = x - x.mean()
+        mean_x = float(x.mean())
+
+        # ---- mean target ----
+        y1 = g[y_mean].to_numpy(dtype=float)
+        s0_m, s1_m, _hist_m = gradient_descent_1d(x_center, y1, lr=lr, iters=iters)
+        # uncenter
+        s0_m_unc = float(s0_m - s1_m * mean_x)
+        s1_m_unc = float(s1_m)
+
+        sk0_m, sk1_m = sklearn_fit_1d(x, y1)
+
+        # ---- peak target ----
+        y2 = g[y_peak].to_numpy(dtype=float)
+        s0_p, s1_p, _hist_p = gradient_descent_1d(x_center, y2, lr=lr, iters=iters)
+        s0_p_unc = float(s0_p - s1_p * mean_x)
+        s1_p_unc = float(s1_p)
+
+        sk0_p, sk1_p = sklearn_fit_1d(x, y2)
 
         rows.append({
-            "interval_id": interval_id,
-            "n_points": len(g),
+            "interval_id": int(interval_id),
+            "n_periods": int(len(g)),
 
-            "scratch_mean_theta0": s_mean_t0,
-            "scratch_mean_theta1": s_mean_t1,
-            "scratch_peak_theta0": s_peak_t0,
-            "scratch_peak_theta1": s_peak_t1,
+            "scratch_mean_theta0": s0_m_unc,
+            "scratch_mean_theta1": s1_m_unc,
+            "scratch_peak_theta0": s0_p_unc,
+            "scratch_peak_theta1": s1_p_unc,
 
-            "sklearn_mean_theta0": k_mean_t0,
-            "sklearn_mean_theta1": k_mean_t1,
-            "sklearn_peak_theta0": k_peak_t0,
-            "sklearn_peak_theta1": k_peak_t1,
+            "sklearn_mean_theta0": sk0_m,
+            "sklearn_mean_theta1": sk1_m,
+            "sklearn_peak_theta0": sk0_p,
+            "sklearn_peak_theta1": sk1_p,
+
+            "learning_rate": lr,
+            "iterations": iters,
+            "target_space": "z" if use_z else "raw",
         })
 
-    theta_table = pd.DataFrame(rows).sort_values("interval_id").reset_index(drop=True)
-
-    os.makedirs(os.path.dirname(out_path), exist_ok=True)
-    theta_table.to_csv(out_path, index=False)
-    return theta_table
-
-def main():
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--config", required=True, help="Path to YAML config")
-    args = parser.parse_args()
-
-    cfg = load_yaml_config(args.config)
-    theta_table = train_per_interval(cfg)
-    print(f"Saved theta table to: {cfg['outputs']['theta_table_path']}")
-    print(theta_table.head(10))
-
-if __name__ == "__main__":
-    main()
+    theta_df = pd.DataFrame(rows).sort_values("interval_id").reset_index(drop=True)
+    save_csv(theta_df, theta_out_csv)
+    return theta_df

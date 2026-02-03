@@ -1,28 +1,36 @@
-data:
-  raw_path: "data/raw/RMBR4-2_export_test.csv"
-  period_summary_path: "data/raw/RMBR4-2_export_test_1.csv"
-  preprocessed_path: "data/preprocessed/RMBR4-2_export_preprocessed.csv"
+paths:
+  raw_dir: data/raw
+  preprocessed_dir: data/preprocessed
+  models_dir: data/models
+  experiments_dir: experiments
 
-model:
-  predictor_feature: "work_period"
-  targets:
-    mean: "mean_value_z"
-    peak: "peak_value_z"
+  raw_csv: data/raw/RMBR4-2_export_test.csv
+  period_csv: data/raw/RMBR4-2_export_test_1.csv
+  preprocessed_csv: data/preprocessed/RMBR4-2_export_preprocessed.csv
+
+  theta_table_csv: data/models/interval_theta_table.csv
+  evaluated_csv: data/models/interval_theta_table_evaluated.csv
+
+  threshold_csv: data/models/alert_thresholds.csv
+  results_csv: experiments/results.csv
+
+work_period_detection:
+  smooth_seconds: 6.0
+  max_gap_multiplier: 10.0
+  min_gap_seconds: 6.0
+  min_work_seconds: 8.0
+  thresh_quantile: 0.65
+  thresh_scale: 0.5
+
+interval:
+  interval_size: 10
+
+training:
   learning_rate: 0.05
   iterations: 3000
+  use_standardized: true
 
-preprocessing:
-  interval_size: 10
-  test_size: 0.2
-  fill_method: "median"
-  standardize_features: true
-
-outputs:
-  theta_table_path: "data/models/interval_theta_table.csv"
-  evaluated_table_path: "data/models/interval_theta_table_evaluated.csv"
-  plot_dir: "data/models/plots"
-  experiment_results_path: "experiments/results.csv"
-
-connections:
-  api_endpoint: ""
-  db_connection_string: ""
+alerts:
+  k: 3.5
+  predict_offset_days: 14
+  slope_source: sklearn

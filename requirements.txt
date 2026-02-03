@@ -25,3 +25,6 @@ PyQt5
 
 # PostgreSQL adapter
 psycopg2
+
+# Testing framework
+pytest
