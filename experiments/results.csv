@@ -1,1 +1,1 @@
-interval_id,interval_start_time,interval_end_time,predicted_failure_time,failure_type,alert_reason
+interval_id,start_work_period,end_work_period,interval_start_time,interval_end_time,predicted_failure_time,failure_type,alert_reason

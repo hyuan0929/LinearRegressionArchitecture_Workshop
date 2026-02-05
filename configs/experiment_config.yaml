@@ -42,6 +42,6 @@ training:
   use_standardized: true
 
 alerts:
-  k: 3.5
+  k: 2.5
   predict_offset_days: 14
   slope_source: sklearn
