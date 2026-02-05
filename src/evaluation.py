@@ -57,7 +57,7 @@ def evaluate_all_intervals(config: Dict[str, Any]) -> pd.DataFrame:
     - plots per interval and target
     Output: interval_theta_table_evaluated.csv and plots/*
     """
-    data_path = config["paths"]["preprocessed_csv"]
+    data_path = config["paths"]["preprocessed_train_csv"]
     theta_path = config["paths"]["theta_table_csv"]
     evaluated_out = config["paths"]["evaluated_csv"]
 
