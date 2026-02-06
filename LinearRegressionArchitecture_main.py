@@ -1,10 +1,11 @@
-# Orchestrator_main.py
+# LinearRegressionArchitecture_main.py
 from __future__ import annotations
 
 import argparse
 import os
 import yaml
 
+from src.db_export import export_postgres_table_to_csv
 from src.utils import ensure_dir
 from src.preprocessing import run_preprocessing_pipeline
 from src.splitter import split_period_csv_to_train_test
@@ -61,6 +62,20 @@ def main() -> None:
 
     config = load_config(args.config)
     ensure_project_dirs(config)
+
+    # ---------------------------------------------------
+    # Step 0: Export data from Neon PostgreSQL -> raw CSV
+    # ---------------------------------------------------
+    if args.step in ["export", "all"]:
+        print("=== Step: Export (Neon DB -> raw CSV) ===")
+
+        export_postgres_table_to_csv(
+            connstr=config["database"]["connstr"],
+            table_name=config["database"]["source_table"],
+            output_csv=config["paths"]["raw_csv"],
+        )
+
+        print("Database export done.\n")    
 
     # ----------------------------------------
     # Step 1: Preprocess raw -> period summary

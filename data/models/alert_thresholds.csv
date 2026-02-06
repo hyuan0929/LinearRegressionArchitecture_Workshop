@@ -1,2 +1,2 @@
 mean_alert_threshold,peak_alert_threshold,mean_slope_threshold,peak_slope_threshold,slope_source,k,mean_slope_col,peak_slope_col,train_csv,theta_csv
-4.007271646191534,9.800767286249997,0.2285029738949977,0.23366951831779592,sklearn,2.5,sklearn_mean_theta1,sklearn_peak_theta1,data/preprocessed/RMBR4-2_export_preprocessed_train.csv,data/models/interval_theta_table.csv
+4.007271646191534,9.800767286249997,0.22846773206773197,0.23366951831779592,sklearn,2.5,sklearn_mean_theta1,sklearn_peak_theta1,data/preprocessed/RMBR4-2_export_preprocessed_train.csv,data/models/interval_theta_table.csv
