@@ -22,7 +22,7 @@ paths:
 
   results_csv: experiments/results.csv
 
-  stream_threshold_csv: data/models/alert_thresholds_stream.csv
+  stream_threshold_csv: data/models/alert_thresholds.csv
 
 work_period_detection:
   smooth_seconds: 6.0
